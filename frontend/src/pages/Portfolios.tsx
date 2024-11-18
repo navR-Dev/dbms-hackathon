@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2, Eye, AlertCircle } from 'lucide-react';
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Trash2, Eye, AlertCircle } from "lucide-react";
 
 interface Portfolio {
   portfolio_id: number;
@@ -13,16 +13,18 @@ interface Portfolio {
 
 function Portfolios() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(null);
-  const [newPortfolioName, setNewPortfolioName] = useState('');
+  const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(
+    null,
+  );
+  const [newPortfolioName, setNewPortfolioName] = useState("");
   const [newInitialInvestment, setNewInitialInvestment] = useState(0);
-  const [newInvestorId, setNewInvestorId] = useState<number>(1);  // Assuming you have an investor id
-  const [newStatus, setNewStatus] = useState('Active');
+  const [newInvestorId, setNewInvestorId] = useState<number>(1); // Assuming you have an investor id
+  const [newStatus, setNewStatus] = useState("Active");
   const queryClient = useQueryClient();
 
   // Fetch portfolios
   const { data: portfolios, isLoading } = useQuery<Portfolio[]>({
-    queryKey: ['portfolios'],
+    queryKey: ["portfolios"],
     queryFn: async () => {
       const response = await fetch("http://localhost:3001/get-portfolios");
       return response.json();
@@ -31,10 +33,15 @@ function Portfolios() {
 
   // Add portfolio mutation
   const addMutation = useMutation({
-    mutationFn: async (newPortfolio: { name: string; initialInvestment: number; investorId: number; status: string }) => {
+    mutationFn: async (newPortfolio: {
+      name: string;
+      initialInvestment: number;
+      investorId: number;
+      status: string;
+    }) => {
       const response = await fetch("http://localhost:3001/add-portfolio", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           investor_id: newPortfolio.investorId,
           portfolio_name: newPortfolio.name,
@@ -43,30 +50,33 @@ function Portfolios() {
         }),
       });
       if (!response.ok) {
-        throw new Error('Failed to add portfolio');
+        throw new Error("Failed to add portfolio");
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['portfolios'] });
-      setNewPortfolioName('');
+      queryClient.invalidateQueries({ queryKey: ["portfolios"] });
+      setNewPortfolioName("");
       setNewInitialInvestment(0);
       setNewInvestorId(1); // Reset to default
-      setNewStatus('Active'); // Reset to default
+      setNewStatus("Active"); // Reset to default
     },
   });
 
   // Delete portfolio mutation
   const deleteMutation = useMutation({
     mutationFn: async (portfolioId: number) => {
-      const response = await fetch(`http://localhost:3001/delete-portfolio/${portfolioId}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(
+        `http://localhost:3001/delete-portfolio/${portfolioId}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (!response.ok) {
-        throw new Error('Failed to delete portfolio');
+        throw new Error("Failed to delete portfolio");
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['portfolios'] });
+      queryClient.invalidateQueries({ queryKey: ["portfolios"] });
       setDeleteModalOpen(false);
     },
   });
@@ -157,7 +167,10 @@ function Portfolios() {
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                  <td
+                    colSpan={6}
+                    className="px-6 py-4 text-center text-gray-500"
+                  >
                     Loading portfolios...
                   </td>
                 </tr>
@@ -165,11 +178,13 @@ function Portfolios() {
                 portfolios?.map((portfolio) => (
                   <tr key={portfolio.portfolio_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{portfolio.portfolio_name}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {portfolio.portfolio_name}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        ${portfolio.total_value.toLocaleString()}
+                        ${portfolio.total_value?.toLocaleString() || "0"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -179,21 +194,28 @@ function Portfolios() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-emerald-600 font-medium">
-                        {(((portfolio.total_value - portfolio.initial_investment) /
-                          portfolio.initial_investment) *
-                          100).toFixed(2)}
+                        {(
+                          ((portfolio.total_value -
+                            portfolio.initial_investment) /
+                            portfolio.initial_investment) *
+                          100
+                        ).toFixed(2)}
                         %
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`text-sm ${portfolio.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>
+                      <div
+                        className={`text-sm ${portfolio.status === "Active" ? "text-green-600" : "text-red-600"}`}
+                      >
                         {portfolio.status}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         className="text-indigo-600 hover:text-indigo-900 mr-4"
-                        onClick={() => {/* View details */}}
+                        onClick={() => {
+                          /* View details */
+                        }}
                       >
                         <Eye className="w-5 h-5" />
                       </button>
@@ -218,10 +240,13 @@ function Portfolios() {
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex items-center mb-4">
               <AlertCircle className="w-6 h-6 text-red-600 mr-2" />
-              <h3 className="text-lg font-medium text-gray-900">Delete Portfolio</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                Delete Portfolio
+              </h3>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              Are you sure you want to delete this portfolio? This action cannot be undone.
+              Are you sure you want to delete this portfolio? This action cannot
+              be undone.
             </p>
             <div className="flex justify-end space-x-4">
               <button
