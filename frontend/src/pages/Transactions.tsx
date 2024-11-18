@@ -14,25 +14,42 @@ interface Transaction {
 
 function Transactions() {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    assetName: "",
+    type: "BUY",
+    quantity: 0,
+    price: 0,
+    portfolioId: 1, // Example default portfolio ID
+    date: new Date().toISOString(),
+  });
+
   const queryClient = useQueryClient();
 
+  // Fetch transactions using the new route
   const { data: transactions, isLoading } = useQuery<Transaction[]>({
     queryKey: ["transactions"],
     queryFn: async () => {
-      const response = await fetch("/api/transactions");
+      const response = await fetch("/get-transactions"); // Updated route
+      if (!response.ok) {
+        throw new Error("Failed to fetch transactions");
+      }
       return response.json();
     },
   });
 
+  // Add a transaction using the new route
   const addTransaction = useMutation({
     mutationFn: async (newTransaction: Omit<Transaction, "id">) => {
-      const response = await fetch("/api/transactions", {
+      const response = await fetch("/add-transaction", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(newTransaction),
       });
+      if (!response.ok) {
+        throw new Error("Failed to add transaction");
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -40,6 +57,19 @@ function Transactions() {
       setIsFormOpen(false);
     },
   });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    addTransaction.mutate(formData);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "quantity" || name === "price" ? Number(value) : value,
+    }));
+  };
 
   return (
     <div>
@@ -146,19 +176,16 @@ function Transactions() {
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               New Transaction
             </h3>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                // Handle form submission
-              }}
-              className="space-y-4"
-            >
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Asset
                 </label>
                 <input
+                  name="assetName"
                   type="text"
+                  value={formData.assetName}
+                  onChange={handleChange}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
                 />
               </div>
@@ -166,7 +193,12 @@ function Transactions() {
                 <label className="block text-sm font-medium text-gray-700">
                   Type
                 </label>
-                <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500">
+                <select
+                  name="type"
+                  value={formData.type}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
+                >
                   <option value="BUY">Buy</option>
                   <option value="SELL">Sell</option>
                 </select>
@@ -176,7 +208,10 @@ function Transactions() {
                   Quantity
                 </label>
                 <input
+                  name="quantity"
                   type="number"
+                  value={formData.quantity}
+                  onChange={handleChange}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
                 />
               </div>
@@ -185,7 +220,10 @@ function Transactions() {
                   Price
                 </label>
                 <input
+                  name="price"
                   type="number"
+                  value={formData.price}
+                  onChange={handleChange}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
                 />
               </div>
