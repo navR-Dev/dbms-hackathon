@@ -85,7 +85,11 @@ app.post("/add-portfolio", (req, res) => {
 
   // Validate inputs
   if (!investor_id || !portfolio_name || !initial_investment || !status) {
-    return res.status(400).send("All fields (investor_id, portfolio_name, initial_investment, status) are required.");
+    return res
+      .status(400)
+      .send(
+        "All fields (investor_id, portfolio_name, initial_investment, status) are required.",
+      );
   }
 
   // Insert the new portfolio into the database
@@ -94,16 +98,20 @@ app.post("/add-portfolio", (req, res) => {
     VALUES (?, ?, ?, ?)
   `;
 
-  db.query(query, [investor_id, portfolio_name, initial_investment, status], (err, result) => {
-    if (err) {
-      console.error("Error adding portfolio:", err);
-      return res.status(500).send("Error adding portfolio");
-    }
-    res.status(201).json({
-      message: "Portfolio added successfully",
-      portfolio_id: result.insertId,
-    });
-  });
+  db.query(
+    query,
+    [investor_id, portfolio_name, initial_investment, status],
+    (err, result) => {
+      if (err) {
+        console.error("Error adding portfolio:", err);
+        return res.status(500).send("Error adding portfolio");
+      }
+      res.status(201).json({
+        message: "Portfolio added successfully",
+        portfolio_id: result.insertId,
+      });
+    },
+  );
 });
 
 // Delete a portfolio
@@ -111,7 +119,7 @@ app.delete("/delete-portfolio/:id", (req, res) => {
   const { id } = req.params;
 
   // Delete the portfolio from the database
-  const query = "DELETE FROM portfolio WHERE id = ?";
+  const query = "DELETE FROM portfolio WHERE portfolio_id = ?";
 
   db.query(query, [id], (err, result) => {
     if (err) {
@@ -152,10 +160,24 @@ app.get("/get-transactions", (req, res) => {
 });
 
 app.post("/add-transaction", (req, res) => {
-  const { portfolio_id, asset_id, transaction_type, transaction_date, units, price_per_unit } = req.body;
+  const {
+    portfolio_id,
+    asset_id,
+    transaction_type,
+    transaction_date,
+    units,
+    price_per_unit,
+  } = req.body;
 
   // Validate inputs
-  if (!portfolio_id || !asset_id || !transaction_type || !transaction_date || !units || !price_per_unit) {
+  if (
+    !portfolio_id ||
+    !asset_id ||
+    !transaction_type ||
+    !transaction_date ||
+    !units ||
+    !price_per_unit
+  ) {
     return res.status(400).send("All fields are required.");
   }
 
@@ -169,16 +191,28 @@ app.post("/add-transaction", (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
 
-  db.query(query, [portfolio_id, asset_id, transaction_type, transaction_date, units, price_per_unit, total_value], (err, result) => {
-    if (err) {
-      console.error("Error adding transaction:", err);
-      return res.status(500).send("Error adding transaction");
-    }
-    res.status(201).json({
-      message: "Transaction added successfully",
-      transaction_id: result.insertId,
-    });
-  });
+  db.query(
+    query,
+    [
+      portfolio_id,
+      asset_id,
+      transaction_type,
+      transaction_date,
+      units,
+      price_per_unit,
+      total_value,
+    ],
+    (err, result) => {
+      if (err) {
+        console.error("Error adding transaction:", err);
+        return res.status(500).send("Error adding transaction");
+      }
+      res.status(201).json({
+        message: "Transaction added successfully",
+        transaction_id: result.insertId,
+      });
+    },
+  );
 });
 
 // Handle root path ("/") and serve index.html
