@@ -1,251 +1,306 @@
-import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 interface Transaction {
-  id: number;
-  portfolioId: number;
-  type: "BUY" | "SELL";
-  assetName: string;
-  quantity: number;
-  price: number;
-  date: string;
+  transaction_id: number;
+  portfolio_id: number;
+  asset_id: number;
+  transaction_type: string;
+  transaction_date: string;
+  units: string;
+  price_per_unit: string;
+  total_value: string;
 }
 
 function Transactions() {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    assetName: "",
-    type: "BUY",
-    quantity: 0,
-    price: 0,
-    portfolioId: 1, // Example default portfolio ID
-    date: new Date().toISOString(),
-  });
+  // Initialize state with null or empty string, not zero
+  const [portfolioId, setPortfolioId] = useState<number | null>(null);
+  const [assetId, setAssetId] = useState<number | null>(null);
+  const [transactionType, setTransactionType] = useState<string>("Buy");
+  const [transactionDate, setTransactionDate] = useState<string>("");
+  const [units, setUnits] = useState<string>(""); // Empty string, not zero
+  const [pricePerUnit, setPricePerUnit] = useState<string>(""); // Empty string
+  const [totalValue, setTotalValue] = useState<string>(""); // Empty string
+  const [message, setMessage] = useState<string>("");
 
-  const queryClient = useQueryClient();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch transactions using the new route
-  const { data: transactions, isLoading } = useQuery<Transaction[]>({
-    queryKey: ["transactions"],
-    queryFn: async () => {
-      const response = await fetch("/get-transactions"); // Updated route
-      if (!response.ok) {
-        throw new Error("Failed to fetch transactions");
+  // Fetch transactions when the component mounts
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const response = await fetch("http://localhost:3001/get-transactions");
+        if (!response.ok) {
+          throw new Error("Failed to fetch transactions");
+        }
+        const data = await response.json();
+        setTransactions(data);
+        setIsLoading(false);
+      } catch (error) {
+        setError(error.message);
+        setIsLoading(false);
       }
-      return response.json();
-    },
-  });
+    };
 
-  // Add a transaction using the new route
-  const addTransaction = useMutation({
-    mutationFn: async (newTransaction: Omit<Transaction, "id">) => {
-      const response = await fetch("/add-transaction", {
+    fetchTransactions();
+  }, []);
+
+  // Handle form submission to add a new transaction
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Ensure no null or empty values in the final submission
+    if (
+      portfolioId === null ||
+      assetId === null ||
+      !transactionDate ||
+      !units ||
+      !pricePerUnit ||
+      !totalValue
+    ) {
+      setMessage("Please fill in all required fields.");
+      return;
+    }
+
+    const newTransaction = {
+      portfolio_id: portfolioId,
+      asset_id: assetId,
+      transaction_type: transactionType,
+      transaction_date: transactionDate,
+      units: parseFloat(units),
+      price_per_unit: parseFloat(pricePerUnit),
+      total_value: parseFloat(totalValue),
+    };
+
+    try {
+      const response = await fetch("http://localhost:3001/add-transaction", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(newTransaction),
       });
-      if (!response.ok) {
-        throw new Error("Failed to add transaction");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      setIsFormOpen(false);
-    },
-  });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    addTransaction.mutate(formData);
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage(
+          `Transaction added successfully! Transaction ID: ${data.transactionId}`,
+        );
+        fetchTransactions(); // Re-fetch transactions after adding
+      } else {
+        setMessage(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      setMessage("Failed to add transaction. Please try again.");
+    }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "quantity" || name === "price" ? Number(value) : value,
-    }));
+  // Function to fetch the updated list of transactions
+  const fetchTransactions = async () => {
+    try {
+      const response = await fetch("http://localhost:3001/get-transactions");
+      if (!response.ok) {
+        throw new Error("Failed to fetch transactions");
+      }
+      const data = await response.json();
+      setTransactions(data);
+    } catch (error) {
+      setError(error.message);
+    }
   };
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
-        <button
-          onClick={() => setIsFormOpen(true)}
-          className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 flex items-center"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          New Transaction
-        </button>
+      <h1 className="text-2xl font-bold text-gray-900 mb-8">Transactions</h1>
+
+      {/* Add Transaction Form */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-800">
+          Add New Transaction
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4 mb-8">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Portfolio ID
+            </label>
+            <input
+              type="number"
+              value={portfolioId === null ? "" : portfolioId} // Allow empty string for null
+              onChange={(e) => setPortfolioId(Number(e.target.value) || null)}
+              required
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Asset ID
+            </label>
+            <input
+              type="number"
+              value={assetId === null ? "" : assetId} // Allow empty string for null
+              onChange={(e) => setAssetId(Number(e.target.value) || null)}
+              required
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Transaction Type
+            </label>
+            <select
+              value={transactionType}
+              onChange={(e) => setTransactionType(e.target.value)}
+              required
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+            >
+              <option value="Buy">Buy</option>
+              <option value="Sell">Sell</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Transaction Date
+            </label>
+            <input
+              type="date"
+              value={transactionDate}
+              onChange={(e) => setTransactionDate(e.target.value)}
+              required
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Units
+            </label>
+            <input
+              type="number"
+              step="0.0001"
+              value={units}
+              onChange={(e) => setUnits(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Price per Unit
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={pricePerUnit}
+              onChange={(e) => setPricePerUnit(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Total Value
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={totalValue}
+              onChange={(e) => setTotalValue(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+            />
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              className="mt-4 px-6 py-2 bg-blue-500 text-white font-semibold rounded-md"
+            >
+              Add Transaction
+            </button>
+          </div>
+        </form>
+
+        {message && <p className="mt-4 text-gray-700">{message}</p>}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+      {/* Transaction List Table */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-800">
+          Transaction List
+        </h2>
+
+        {isLoading ? (
+          <p>Loading transactions...</p>
+        ) : error ? (
+          <p className="text-red-500">Error: {error}</p>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200 mt-6">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
+                  Transaction ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
+                  Portfolio ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Asset
+                  Asset ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Quantity
+                  Transaction Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
+                  Transaction Date
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total
+                  Units
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Price per Unit
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total Value
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {isLoading ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-6 py-4 text-center text-gray-500"
-                  >
-                    Loading transactions...
+              {transactions.map((transaction) => (
+                <tr key={transaction.transaction_id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transaction.transaction_id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transaction.portfolio_id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transaction.asset_id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transaction.transaction_type}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transaction.transaction_date}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transaction.units}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transaction.price_per_unit}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transaction.total_value}
                   </td>
                 </tr>
-              ) : (
-                transactions?.map((transaction) => (
-                  <tr key={transaction.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {new Date(transaction.date).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          transaction.type === "BUY"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {transaction.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {transaction.assetName}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {transaction.quantity}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        ${transaction.price.toLocaleString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        $
-                        {(
-                          transaction.quantity * transaction.price
-                        ).toLocaleString()}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
-        </div>
+        )}
       </div>
-
-      {/* Transaction Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              New Transaction
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Asset
-                </label>
-                <input
-                  name="assetName"
-                  type="text"
-                  value={formData.assetName}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Type
-                </label>
-                <select
-                  name="type"
-                  value={formData.type}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
-                >
-                  <option value="BUY">Buy</option>
-                  <option value="SELL">Sell</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Quantity
-                </label>
-                <input
-                  name="quantity"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Price
-                </label>
-                <input
-                  name="price"
-                  type="number"
-                  value={formData.price}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
-                  onClick={() => setIsFormOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                >
-                  Add Transaction
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

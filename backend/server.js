@@ -1,14 +1,16 @@
 const express = require("express");
 const mysql = require("mysql2");
-const path = require("path"); // For resolving paths
-const cors = require("cors"); // For handling cross-origin requests
+const path = require("path");
+const cors = require("cors");
 
-// Initialize the express app
 const app = express();
-const port = 3001; // Port for the server
+const port = 3001;
 
 // Enable CORS
 app.use(cors());
+
+// Middleware to parse incoming JSON bodies
+app.use(express.json());
 
 // Set up the MySQL connection
 const db = mysql.createConnection({
@@ -31,8 +33,6 @@ db.connect((err) => {
 app.use(express.static(__dirname));
 
 // Individual routes for each table
-
-// Fetch all assets
 app.get("/get-assets", (req, res) => {
   const query = "SELECT * FROM asset";
   db.query(query, (err, results) => {
@@ -44,110 +44,6 @@ app.get("/get-assets", (req, res) => {
   });
 });
 
-// Fetch all investors
-app.get("/get-investors", (req, res) => {
-  const query = "SELECT * FROM investor";
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error("Error fetching investors:", err);
-      return res.status(500).send("Error fetching investors");
-    }
-    res.json(results);
-  });
-});
-
-// Fetch all market history
-app.get("/get-market-history", (req, res) => {
-  const query = "SELECT * FROM market_history";
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error("Error fetching market history:", err);
-      return res.status(500).send("Error fetching market history");
-    }
-    res.json(results);
-  });
-});
-
-// Fetch all portfolios
-app.get("/get-portfolios", (req, res) => {
-  const query = "SELECT * FROM portfolio";
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error("Error fetching portfolios:", err);
-      return res.status(500).send("Error fetching portfolios");
-    }
-    res.json(results);
-  });
-});
-
-app.post("/add-portfolio", (req, res) => {
-  const { investor_id, portfolio_name, initial_investment, status } = req.body;
-
-  // Validate inputs
-  if (!investor_id || !portfolio_name || !initial_investment || !status) {
-    return res
-      .status(400)
-      .send(
-        "All fields (investor_id, portfolio_name, initial_investment, status) are required.",
-      );
-  }
-
-  // Insert the new portfolio into the database
-  const query = `
-    INSERT INTO portfolio (investor_id, portfolio_name, initial_investment, status)
-    VALUES (?, ?, ?, ?)
-  `;
-
-  db.query(
-    query,
-    [investor_id, portfolio_name, initial_investment, status],
-    (err, result) => {
-      if (err) {
-        console.error("Error adding portfolio:", err);
-        return res.status(500).send("Error adding portfolio");
-      }
-      res.status(201).json({
-        message: "Portfolio added successfully",
-        portfolio_id: result.insertId,
-      });
-    },
-  );
-});
-
-// Delete a portfolio
-app.delete("/delete-portfolio/:id", (req, res) => {
-  const { id } = req.params;
-
-  // Delete the portfolio from the database
-  const query = "DELETE FROM portfolio WHERE portfolio_id = ?";
-
-  db.query(query, [id], (err, result) => {
-    if (err) {
-      console.error("Error deleting portfolio:", err);
-      return res.status(500).send("Error deleting portfolio");
-    }
-    if (result.affectedRows === 0) {
-      return res.status(404).send("Portfolio not found");
-    }
-    res.status(200).json({
-      message: "Portfolio deleted successfully",
-    });
-  });
-});
-
-// Fetch all portfolio assets
-app.get("/get-portfolio-assets", (req, res) => {
-  const query = "SELECT * FROM portfolio_asset";
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error("Error fetching portfolio assets:", err);
-      return res.status(500).send("Error fetching portfolio assets");
-    }
-    res.json(results);
-  });
-});
-
-// Fetch all transactions
 app.get("/get-transactions", (req, res) => {
   const query = "SELECT * FROM transaction";
   db.query(query, (err, results) => {
@@ -159,6 +55,7 @@ app.get("/get-transactions", (req, res) => {
   });
 });
 
+// POST route to add a transaction
 app.post("/add-transaction", (req, res) => {
   const {
     portfolio_id,
@@ -167,31 +64,28 @@ app.post("/add-transaction", (req, res) => {
     transaction_date,
     units,
     price_per_unit,
+    total_value,
   } = req.body;
 
-  // Validate inputs
+  // Ensure that all necessary fields are provided
   if (
     !portfolio_id ||
     !asset_id ||
     !transaction_type ||
     !transaction_date ||
     !units ||
-    !price_per_unit
+    !price_per_unit ||
+    !total_value
   ) {
-    return res.status(400).send("All fields are required.");
+    return res.status(400).json({ error: "All fields are required" });
   }
 
-  // Calculate total value
-  const total_value = units * price_per_unit;
-
-  // Insert the transaction into the database
   const query = `
-    INSERT INTO transaction 
-    (portfolio_id, asset_id, transaction_type, transaction_date, units, price_per_unit, total_value)
+    INSERT INTO transaction (portfolio_id, asset_id, transaction_type, transaction_date, units, price_per_unit, total_value)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
 
-  db.query(
+  db.execute(
     query,
     [
       portfolio_id,
@@ -202,14 +96,14 @@ app.post("/add-transaction", (req, res) => {
       price_per_unit,
       total_value,
     ],
-    (err, result) => {
+    (err, results) => {
       if (err) {
-        console.error("Error adding transaction:", err);
-        return res.status(500).send("Error adding transaction");
+        console.error("Error inserting transaction:", err);
+        return res.status(500).json({ error: "Failed to add transaction" });
       }
       res.status(201).json({
         message: "Transaction added successfully",
-        transaction_id: result.insertId,
+        transactionId: results.insertId,
       });
     },
   );
