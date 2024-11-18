@@ -1,4 +1,3 @@
-import React from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   BarChart3,
@@ -12,11 +11,11 @@ import {
 import { useState } from "react";
 
 const navItems = [
-  { path: "/", label: "Dashboard", icon: BarChart3 },
-  { path: "/portfolios", label: "Portfolios", icon: Briefcase },
   { path: "/transactions", label: "Transactions", icon: DollarSign },
+  { path: "/portfolios", label: "Portfolios", icon: Briefcase },
+  { path: "/assets", label: "assets", icon: Menu },
+  { path: "/", label: "Dashboard", icon: BarChart3 },
   { path: "/settings", label: "Settings", icon: Settings },
-  { path: "/assets", label: "assets", icon: Settings },
 ];
 
 function Layout() {

@@ -44,6 +44,17 @@ app.get("/get-assets", (req, res) => {
   });
 });
 
+app.get("/get-portfolio_asset", (req, res) => {
+  const query = "SELECT * FROM portfolio_asset";
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Error fetching portfolio_assetes:", err);
+      return res.status(500).send("Error fetching portfolio_assets");
+    }
+    res.json(results);
+  });
+});
+
 app.get("/get-transactions", (req, res) => {
   const query = "SELECT * FROM transaction";
   db.query(query, (err, results) => {
@@ -107,6 +118,37 @@ app.post("/add-transaction", (req, res) => {
       });
     },
   );
+});
+app.get("/get-portfolios", (req, res) => {
+  const query = "SELECT * FROM portfolio";
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Error fetching portfolios:", err);
+      return res.status(500).send("Error fetching portfolios");
+    }
+    res.json(results);
+  });
+});
+
+// Delete a portfolio
+app.delete("/delete-portfolio/:id", (req, res) => {
+  const { id } = req.params;
+
+  // Delete the portfolio from the database
+  const query = "DELETE FROM portfolio WHERE portfolio_id = ?";
+
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      console.error("Error deleting portfolio:", err);
+      return res.status(500).send("Error deleting portfolio");
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).send("Portfolio not found");
+    }
+    res.status(200).json({
+      message: "Portfolio deleted successfully",
+    });
+  });
 });
 
 // Handle root path ("/") and serve index.html
